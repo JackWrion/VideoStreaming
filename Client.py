@@ -114,8 +114,7 @@ class Client:
 		if (code == "200 OK"):
 			self.teardownAcked = 1
 			self.state = self.INIT
-			image_file = "image_cache_" + str(self.sessionId) + ".jpg"
-			os.remove(image_file)
+			
 		else:
 			print(code,'\n')
 
@@ -164,16 +163,16 @@ class Client:
 		self.rtspSeq = self.rtspSeq + 1
 		self.sendRtspRequest(requestCode=self.PLAY)
 
+		try:
+			self.thread.join()
+		except:
+			traceback.print_exc()
+
 		dataResponse = self.recvRtspReply()
 
 		code, self.sessionId = self.parseRtspReply(data=dataResponse)
 
 		if (code == "200 OK"):
-			try:
-				self.thread.join()
-			except:
-				traceback.print_exc()
-
 			self.playEvent = threading.Event()
 			self.playEvent.clear()
 			self.thread = threading.Thread(target=self.listenRtp)
@@ -335,6 +334,12 @@ class Client:
 
 	def handler(self):
 		"""Handler on explicitly closing the GUI window."""
+		try:
+			image_file = "image_cache_" + str(self.sessionId) + ".jpg"
+			os.remove(image_file)
+		except:
+			pass
+
 		if (self.state == self.READY):
 			self.rtpSocket.close()
 		elif (self.state == self.PLAYING):
