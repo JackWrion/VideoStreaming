@@ -139,6 +139,7 @@ class ServerWorker:
 				port = int(self.clientInfo['rtpPort'])
 				self.clientInfo['rtpSocket'].sendto(self.makeRtp(data, frameNumber),(address,port))
 
+			# Add code for ending... [JWR]
 			else:
 				self.clientInfo['videoStream'].restart()
 				self.clientInfo['event'].set()

@@ -85,15 +85,15 @@ class Client:
 		
 		## send and recv
 		self.sendRtspRequest(requestCode=self.SETUP)
-		dataResponse = self.recvRtspReply()
+		# dataResponse = self.recvRtspReply()
 
-		code, self.sessionId = self.parseRtspReply(data=dataResponse)
-
-		if (code == "200 OK"):
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.2)
+		if (self.requestSent == 1):
 			self.openRtpPort()
 			self.state = self.READY
 		else:
-			print(code,'\n')
+			print("Error at SetupMovie",'\n')
 		
 	#DONE
 
@@ -107,16 +107,16 @@ class Client:
 		self.rtspSeq = self.rtspSeq + 1
 
 		self.sendRtspRequest(requestCode=self.TEARDOWN)
-		dataResponse = self.recvRtspReply()
+		# dataResponse = self.recvRtspReply()
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.2)
 
-		code, self.sessionId = self.parseRtspReply(data=dataResponse)
-
-		if (code == "200 OK"):
+		if (self.requestSent == 1 ):
 			self.teardownAcked = 1
 			self.state = self.INIT
 			
 		else:
-			print(code,'\n')
+			print("Error at teardown",'\n')
 
 		
 	#DONE
@@ -136,15 +136,15 @@ class Client:
 		self.rtspSeq = self.rtspSeq + 1
 		
 		self.sendRtspRequest(requestCode=self.PAUSE)
-		dataResponse = self.recvRtspReply()
+		# dataResponse = self.recvRtspReply()
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.2)
 
-		code, self.sessionId = self.parseRtspReply(data=dataResponse)
-
-		if (code == "200 OK"):
+		if (self.requestSent == 1):
 			self.playEvent.set()
 			self.state = self.READY
 		else:
-			print(code,'\n')
+			print("Error at Pause",'\n')
 
 	#DONE
 	
@@ -168,11 +168,12 @@ class Client:
 		except:
 			traceback.print_exc()
 
-		dataResponse = self.recvRtspReply()
+		# dataResponse = self.recvRtspReply()
 
-		code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.2)
 
-		if (code == "200 OK"):
+		if (self.requestSent == 1):
 			self.playEvent = threading.Event()
 			self.playEvent.clear()
 			self.thread = threading.Thread(target=self.listenRtp)
@@ -180,7 +181,7 @@ class Client:
 			self.state = self.PLAYING
 			print("PLAY\n")
 		else:
-			print(code,'\n')
+			print("Error at Play",'\n')
 
 	#DONE
 
@@ -192,31 +193,26 @@ class Client:
 
 		while True:
 
+			if (self.playEvent.isSet()):
+				print("PAUSE\n")
+				break
+
+			if self.teardownAcked == 1:
+				self.rtpSocket.shutdown(socket.SHUT_RDWR)
+				self.rtpSocket.close()
+				break
+
+			# dataResponse = self.recvRtspReply()
+			if (self.requestSent == -1):
+				self.state = self.READY
+				print("END VIDEO !!!....READY")
+				break
+
 			try:
 				data =  self.rtpSocket.recv(99999)
 			except:
-				
-				if (self.playEvent.isSet()):
-					print("PAUSE\n")
-					break
-
-				if self.teardownAcked == 1:
-					self.rtpSocket.shutdown(socket.SHUT_RDWR)
-					self.rtpSocket.close()
-					break
-
-				dataResponse = self.recvRtspReply()
-				if (dataResponse):
-					code, self.sessionId = self.parseRtspReply(data=dataResponse)
-					if (code == "END"):
-						self.state = self.READY
-						print("END VIDEO !!!....READY")
-						break
-					else:
-						print(code,'\n')
-
+				traceback.print_exc()
 			else:
-				
 				if (data):
 					image_file = self.writeFrame(data)
 					self.updateMovie(image_file)
@@ -259,6 +255,11 @@ class Client:
 
 		message = 'Hello, server!'
 		print(message)
+
+		self.RevEvent = threading.Event()
+		self.RevEvent.clear()
+		threading.Thread(target=self.recvRtspReply).start()
+
 	##Done
 	
 
@@ -289,13 +290,27 @@ class Client:
 	def recvRtspReply(self):
 		"""Receive RTSP reply from the server."""
 		
-		data = self.RTStreamingPsocket.recv(256)
-		if data:
-			print("\nData received from server:\n" + data.decode("utf-8"))
-		else:
-			print ("Cannot received anything from server!!!\n")
+		while True:
+			if self.RevEvent.isSet():
+				break
 
-		return data.decode("utf-8")
+			try:
+				data = self.RTStreamingPsocket.recv(256)
+			except:
+				pass
+			else:
+				if data:
+					data= data.decode("utf-8")
+					self.parseRtspReply(data=data)
+
+
+		# data = self.RTStreamingPsocket.recv(256)
+		# if data:
+		# 	print("\nData received from server:\n" + data.decode("utf-8"))
+		# else:
+		# 	print ("Cannot received anything from server!!!\n")
+
+		# return data.decode("utf-8")
 
 	###DONE
 
@@ -310,8 +325,14 @@ class Client:
 
 		sessionID = request[2].split(' ')
 		sessionID = sessionID[1]
-
-		return code, sessionID
+		
+		if (code == "200 OK"):
+			self.sessionId = sessionID
+			self.requestSent = 1
+		
+		else:
+			self.requestSent = -1
+			print(code,'\n')
 	## DONE
 
 
@@ -324,7 +345,7 @@ class Client:
 		# Create a new datagram socket to receive RTP packets from the server
 		# self.rtpSocket = ...
 		self.rtpSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self.rtpSocket.bind(('localhost', self.rtpPort))
+		self.rtpSocket.bind((self.serverAddr, self.rtpPort))
 
 		print("\nClient open RTP port: ",self.rtpPort)
 		# Set the timeout value of the socket to 0.5sec
@@ -345,7 +366,8 @@ class Client:
 		elif (self.state == self.PLAYING):
 			self.exitClient()
 
+		self.RevEvent.set()
 		self.RTStreamingPsocket.close()
 		self.master.destroy()
-		print("EXIT COMPLETELY")
+		print("EXIT COMPLETE !!!")
 		#DONE
