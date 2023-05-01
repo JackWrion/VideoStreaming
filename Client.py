@@ -355,18 +355,27 @@ class Client:
 
 	def handler(self):
 		"""Handler on explicitly closing the GUI window."""
+		self.RevEvent.set()
+
+		# Try to delete all cache
 		try:
-			image_file = "image_cache_" + str(self.sessionId) + ".jpg"
-			os.remove(image_file)
+			files = os.listdir()
+			# Loop through the files and delete the .jpg files
+			for file in files:
+				if file.endswith('.jpg'):
+					os.remove(file)
+
 		except:
 			pass
 
+
+		# close all socket
 		if (self.state == self.READY):
 			self.rtpSocket.close()
 		elif (self.state == self.PLAYING):
 			self.exitClient()
 
-		self.RevEvent.set()
+		
 		self.RTStreamingPsocket.close()
 		self.master.destroy()
 		print("EXIT COMPLETE !!!")
