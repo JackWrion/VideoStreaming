@@ -69,7 +69,7 @@ class Client:
 		# Create CLOSING GUI button
 		self.closing = Button(self.master, width=20, padx=3, pady=3)
 		self.closing["text"] = "Close"
-		self.closing["command"] =  self.handler
+		self.closing["command"] =  self.close
 		self.closing.grid(row=2, column=1, padx=2, pady=2)
 
 
@@ -132,7 +132,6 @@ class Client:
 			print("SET UP FIRST....") 
 			return
 
-		self.playEvent.set()
 		self.rtspSeq = self.rtspSeq + 1
 		
 		self.sendRtspRequest(requestCode=self.PAUSE)
@@ -171,12 +170,13 @@ class Client:
 		# dataResponse = self.recvRtspReply()
 
 		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
-		time.sleep(0.2)
+		time.sleep(0.1)
 
 		if (self.requestSent == 1):
 			self.playEvent = threading.Event()
 			self.playEvent.clear()
 			self.thread = threading.Thread(target=self.listenRtp)
+			time.sleep(0.1)
 			self.thread.start()
 			self.state = self.PLAYING
 			print("PLAY\n")
@@ -190,14 +190,16 @@ class Client:
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
-
+		
 		while True:
 
-			if (self.playEvent.isSet()):
-				print("PAUSE\n")
+			if self.playEvent.isSet():
+				print("Listen PAUSE\n")
 				break
 
 			if self.teardownAcked == 1:
+				print("Listen TEAR\n")
+
 				self.rtpSocket.shutdown(socket.SHUT_RDWR)
 				self.rtpSocket.close()
 				break
@@ -209,9 +211,10 @@ class Client:
 				break
 
 			try:
-				data =  self.rtpSocket.recv(99999)
+				data =  self.rtpSocket.recv(999999)
 			except:
-				traceback.print_exc()
+				pass
+				#traceback.print_exc()
 			else:
 				if (data):
 					image_file = self.writeFrame(data)
@@ -226,6 +229,8 @@ class Client:
 		"""Write the received frame to a temp image file. Return the image file."""
 		packet = RtpPacket()
 		packet.decode(data)
+
+		print ( int(packet.seqNum() ) )
 
 		image_file = "image_cache_" + str(self.sessionId) + ".jpg"
 		file = open(image_file, "wb")
@@ -292,6 +297,7 @@ class Client:
 		
 		while True:
 			if self.RevEvent.isSet():
+				print ("Stop Receiver")
 				break
 
 			try:
@@ -353,9 +359,16 @@ class Client:
 		self.rtpSocket.settimeout(0.5)
 	### Done
 
-	def handler(self):
+	def close(self):
 		"""Handler on explicitly closing the GUI window."""
-		self.RevEvent.set()
+	
+		# close all socket
+		if (self.state == self.READY):
+			self.rtpSocket.close()
+		elif (self.state == self.PLAYING):
+			print("STOP when playing")
+			self.exitClient()
+
 
 		# Try to delete all cache
 		try:
@@ -367,15 +380,47 @@ class Client:
 
 		except:
 			pass
+		
+		try:
+			self.playEvent.set()
+		except:
+			pass
+		time.sleep(0.5)
+		self.RevEvent.set()
+		self.RTStreamingPsocket.close()
+		self.master.destroy()
+		print("EXIT COMPLETE !!!")
+		#DONE
 
 
-		# close all socket
+	def handler(self):
+		"""Handler on explicitly closing the GUI window."""
+
 		if (self.state == self.READY):
 			self.rtpSocket.close()
 		elif (self.state == self.PLAYING):
+			print("STOP when playing")
+			self.rtpSocket.shutdown(socket.SHUT_RDWR)
+			self.rtpSocket.close()
+			self.playEvent.set()
 			self.exitClient()
-
 		
+		self.thread.join(1)
+		
+		# Try to delete all cache
+		try:
+			files = os.listdir()
+			# Loop through the files and delete the .jpg files
+			for file in files:
+				if file.endswith('.jpg'):
+					os.remove(file)
+		except:
+			pass
+
+
+		# close all socket
+		
+		self.RevEvent.set()
 		self.RTStreamingPsocket.close()
 		self.master.destroy()
 		print("EXIT COMPLETE !!!")

@@ -23,9 +23,9 @@ class RtpPacket:
 		header[1] = pt
 
 		l_seq = seqnum & 255
-		h_seg = seqnum >> 8
-		header[2] = l_seq
-		header[3] = h_seg
+		h_seq = seqnum >> 8
+		header[2] = h_seq
+		header[3] = l_seq
 
 
 		header[4] = (timestamp >> 24) & 0xff
