@@ -307,6 +307,7 @@ class Client:
 			else:
 				if data:
 					data= data.decode("utf-8")
+					print (data)
 					self.parseRtspReply(data=data)
 
 
