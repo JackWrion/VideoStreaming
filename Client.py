@@ -18,6 +18,8 @@ class Client:
 	PLAY = 1
 	PAUSE = 2
 	TEARDOWN = 3
+	FAST = 4
+	LOW = 5
 	
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
@@ -38,11 +40,11 @@ class Client:
 	# THIS GUI IS JUST FOR REFERENCE ONLY, STUDENTS HAVE TO CREATE THEIR OWN GUI 	
 	def createWidgets(self):
 		"""Build GUI."""
-		# Create Setup button
-		self.setup = Button(self.master, width=20, padx=3, pady=3)
-		self.setup["text"] = "Setup"
-		self.setup["command"] = self.setupMovie
-		self.setup.grid(row=1, column=0, padx=2, pady=2)
+		# # Create Setup button
+		# self.setup = Button(self.master, width=20, padx=3, pady=3)
+		# self.setup["text"] = "Setup"
+		# self.setup["command"] = self.setupMovie
+		# self.setup.grid(row=1, column=0, padx=2, pady=2)
 		
 		# Create Play button		
 		self.start = Button(self.master, width=20, padx=3, pady=3)
@@ -70,7 +72,21 @@ class Client:
 		self.closing = Button(self.master, width=20, padx=3, pady=3)
 		self.closing["text"] = "Close"
 		self.closing["command"] =  self.close
-		self.closing.grid(row=2, column=1, padx=2, pady=2)
+		self.closing.grid(row=2, column=3, padx=2, pady=2)
+
+		# Create faster GUI button
+		self.fasting = Button(self.master, width=20, padx=3, pady=3)
+		self.fasting["text"] = ">> 2"
+		self.fasting["command"] =  self.fast
+		self.fasting.grid(row=2, column=2, padx=2, pady=2)
+
+		# Create faster GUI button
+		self.lowing = Button(self.master, width=20, padx=3, pady=3)
+		self.lowing["text"] = "2 <<"
+		self.lowing["command"] =  self.low
+		self.lowing.grid(row=2, column=1, padx=2, pady=2)
+
+
 
 
 	def setupMovie(self):
@@ -153,9 +169,10 @@ class Client:
 		"""Play button handler."""
 
 		if (self.state == 0):
-			print("SET UP FIRST....") 
-			return
-		if (self.state == 2):
+			self.setupMovie()
+			print("SETING UP....") 
+			time.sleep(0.1)
+		elif (self.state == 2):
 			print("PLAYING....") 
 			return
 
@@ -223,6 +240,58 @@ class Client:
 	#Done	
 
 
+	def fast(self):
+		"""Pause button handler."""
+		if (self.state == self.READY):
+			print("READY...CANNOT FAST....") 
+			return
+		if (self.state == self.INIT):
+			print("SET UP FIRST....") 
+			return
+
+		self.rtspSeq = self.rtspSeq + 1
+		
+		self.sendRtspRequest(requestCode=self.FAST)
+		# dataResponse = self.recvRtspReply()
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.1)
+
+		if (self.requestSent == 1):
+			print("FASTER...",'\n')
+		else:
+			print("ERROR at FASTER",'\n')
+
+	#DONE
+
+
+	def low(self):
+		"""Pause button handler."""
+		if (self.state == self.READY):
+			print("READY...CANNOT FAST....") 
+			return
+		if (self.state == self.INIT):
+			print("SET UP FIRST....") 
+			return
+
+		self.rtspSeq = self.rtspSeq + 1
+		
+		self.sendRtspRequest(requestCode=self.LOW)
+		# dataResponse = self.recvRtspReply()
+		# code, self.sessionId = self.parseRtspReply(data=dataResponse)
+		time.sleep(0.1)
+
+		if (self.requestSent == 1):
+			print("LOWER...",'\n')
+		else:
+			print("ERROR at LOWER",'\n')
+
+	#DONE
+
+
+
+
+
+
 
 
 	def writeFrame(self, data):
@@ -286,6 +355,12 @@ class Client:
 			self.RTStreamingPsocket.sendall(message.encode("utf-8"))
 		elif (requestCode == 3):
 			message = "TEARDOWN " + str(self.fileName) + " RTSP/1.0\n" + "CSeq: " + str(self.rtspSeq) + "\n" + "Session: " + str(self.sessionId)
+			self.RTStreamingPsocket.sendall(message.encode("utf-8"))
+		elif (requestCode == 4):
+			message = "FAST " + str(self.fileName) + " RTSP/1.0\n" + "CSeq: " + str(self.rtspSeq) + "\n" + "Session: " + str(self.sessionId)
+			self.RTStreamingPsocket.sendall(message.encode("utf-8"))
+		elif (requestCode == 5):
+			message = "LOW " + str(self.fileName) + " RTSP/1.0\n" + "CSeq: " + str(self.rtspSeq) + "\n" + "Session: " + str(self.sessionId)
 			self.RTStreamingPsocket.sendall(message.encode("utf-8"))
 
 	## DONE

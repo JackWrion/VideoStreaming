@@ -64,7 +64,8 @@ class ServerWorker:
 				
 				# Generate a randomized RTSP session ID
 				self.clientInfo['session'] = randint(100000, 999999)
-				
+				self.clientInfo['fast'] = 1
+
 				# Send RTSP reply
 				self.replyRtsp(self.OK_200, seq[1])
 				
@@ -111,6 +112,28 @@ class ServerWorker:
 			
 			# Close the RTP socket
 			self.clientInfo['rtpSocket'].close()
+
+		
+		elif requestType == 'FAST':
+			print("processing FAST\n")
+			
+			self.clientInfo['fast'] *= 2
+			print("faster -- > speed x", self.clientInfo['fast'])
+			
+			self.replyRtsp(self.OK_200, seq[1])
+
+		elif requestType == 'LOW':
+			print("processing LOW\n")
+			
+			self.clientInfo['fast'] = (int)(self.clientInfo['fast'] / 2)
+
+			if (self.clientInfo['fast'] < 1 ):
+				self.clientInfo['fast'] = 1
+
+			print("lower --> speed x", self.clientInfo['fast'])
+			
+			self.replyRtsp(self.OK_200, seq[1])
+			
 			
 	def sendRtp(self):
 		"""Send RTP packets over UDP."""
@@ -120,8 +143,13 @@ class ServerWorker:
 			# Stop sending if request is PAUSE or TEARDOWN
 			if self.clientInfo['event'].isSet(): 
 				break 
-				
-			data = self.clientInfo['videoStream'].nextFrame()
+			
+			for i in range(self.clientInfo['fast']):
+				try:
+					data = self.clientInfo['videoStream'].nextFrame()
+				except:
+					pass
+
 			if data: 
 				frameNumber = self.clientInfo['videoStream'].frameNbr()
 				print(frameNumber)
